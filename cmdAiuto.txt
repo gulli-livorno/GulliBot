@@ -1,0 +1,3 @@
+Comandi disponibili:
+/stato - Restituisce lo stato del bot
+/aiuto - Lista comandi disponibili

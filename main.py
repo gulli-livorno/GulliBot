@@ -1,8 +1,11 @@
 import json
 import requests
 import signal
+import time
+
 
 run = True
+startTime = time.time()
 
 def handler_stop_signals(signum, frame):
     global run
@@ -15,6 +18,17 @@ signal.signal(signal.SIGTERM, handler_stop_signals)
 token = ""
 apiUrl = "https://api.telegram.org/bot"
 timeout = 15
+
+def richiesteLog(rispostaText):
+    richiesteLogFile = open('richieste.log', 'a')
+    richiesteLogFile.write(rispostaText + '\n')
+    richiesteLogFile.close()
+
+def sendMessage(chatId, text):
+    urlRichiesta = apiUrl + token + '/sendMessage' \
+        '?chat_id=' + chatId + '&text=' + text
+    print(urlRichiesta)
+    richiesteLog(requests.get(urlRichiesta).text)
 
 while True:
     if not run:
@@ -38,7 +52,7 @@ while True:
 
         updateLogFile = open('update.log', 'a')
         updateLogFile.write('UPDATE N° ' + updateId + '\n')
-        updateLogFile.write(json.dumps(result, indent=4))
+        updateLogFile.write(json.dumps(result, indent=4) + '\n')
         updateLogFile.close()
 
         offsetFile = open('offset', 'w')
@@ -52,11 +66,13 @@ while True:
                 nome = memberDict['first_name']
                 if 'username' in memberDict:
                     nome += ' aka ' + memberDict['username']
-
-                urlRichiesta = apiUrl + token + '/sendMessage' \
-                    '?chat_id=' + chatId + '&text=Benvenuto/a ' + nome
-                print(urlRichiesta)
-                risposta = requests.get(urlRichiesta)
-                richiesteLogFile = open('richieste.log', 'a')
-                richiesteLogFile.write(risposta.text + '\n')
-                richiesteLogFile.close()
+                sendMessage(chatId, 'Benvenuto/a ' + nome)
+            if 'text' in result['message']:
+                text = result['message']['text']
+                if text.startswith('/stato'):
+                    secUptime = str(int(time.time() - startTime))
+                    sendMessage(chatId, 'Bot online da ' + secUptime + ' secondi')
+                if text.startswith('/aiuto'):
+                    cmdAiutoFile = open('cmdAiuto.txt', 'r')
+                    sendMessage(chatId, str(cmdAiutoFile.read()))
+                    cmdAiutoFile.close()
