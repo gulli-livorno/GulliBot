@@ -65,7 +65,7 @@ while True:
                 memberDict = result['message']['new_chat_member']
                 nome = memberDict['first_name']
                 if 'username' in memberDict:
-                    nome += ' aka ' + memberDict['username']
+                    nome += ' a.k.a. @' + memberDict['username']
                 sendMessage(chatId, 'Benvenuto/a ' + nome)
             if 'text' in result['message']:
                 text = result['message']['text']
