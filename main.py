@@ -7,6 +7,7 @@ import time
 run = True
 startTime = time.time()
 
+
 def handler_stop_signals(signum, frame):
     global run
     run = False
@@ -19,10 +20,18 @@ token = ""
 apiUrl = "https://api.telegram.org/bot"
 timeout = 15
 
+urlRichiesta = apiUrl + token + '/getMe'
+print(urlRichiesta)
+infoBot = requests.get(urlRichiesta)
+infoBotDict = json.loads(infoBot.text)
+botUsername = infoBotDict['result']['username']
+
+
 def richiesteLog(rispostaText):
     richiesteLogFile = open('richieste.log', 'a')
     richiesteLogFile.write(rispostaText + '\n')
     richiesteLogFile.close()
+
 
 def sendMessage(chatId, text):
     urlRichiesta = apiUrl + token + '/sendMessage' \
@@ -30,11 +39,22 @@ def sendMessage(chatId, text):
     print(urlRichiesta)
     richiesteLog(requests.get(urlRichiesta).text)
 
+
 def estrNomeUser(memberDict):
     nu = memberDict['first_name']
     if 'username' in memberDict:
         nu += ' a.k.a. @' + memberDict['username']
     return nu
+
+
+def verComando(testo, comando):
+    amm = False
+    if testo == comando:
+        amm = True
+    elif testo == comando + '@' + botUsername:
+        amm = True
+    return amm
+
 
 while True:
     if not run:
@@ -75,20 +95,20 @@ while True:
                 )
             if 'text' in result['message']:
                 text = result['message']['text']
-                if text.startswith('/stato'):
+                if verComando(text, '/stato'):
                     secUptime = str(int(time.time() - startTime))
                     sendMessage(
                         chatId,
                         'Bot online da ' + secUptime + ' secondi'
                     )
-                if text.startswith('/aiuto'):
+                if verComando(text, '/aiuto'):
                     cmdAiutoFile = open('cmdAiuto.txt', 'r')
                     sendMessage(
                         chatId,
                         str(cmdAiutoFile.read())
                     )
                     cmdAiutoFile.close()
-                if text.startswith('/saluta'):
+                if verComando(text, '/saluta'):
                     memberDict = result['message']['from']
                     sendMessage(
                         chatId,
