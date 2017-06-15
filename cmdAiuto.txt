@@ -1,3 +1,4 @@
 Comandi disponibili:
-/stato - Restituisce lo stato del bot
+/stato - Stato del bot
 /aiuto - Lista comandi disponibili
+/saluta - Ti saluto

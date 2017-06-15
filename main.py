@@ -30,6 +30,12 @@ def sendMessage(chatId, text):
     print(urlRichiesta)
     richiesteLog(requests.get(urlRichiesta).text)
 
+def estrNomeUser(memberDict):
+    nu = memberDict['first_name']
+    if 'username' in memberDict:
+        nu += ' a.k.a. @' + memberDict['username']
+    return nu
+
 while True:
     if not run:
         break
@@ -63,16 +69,28 @@ while True:
             chatId = str(result['message']['chat']['id'])
             if 'new_chat_member' in result['message']:
                 memberDict = result['message']['new_chat_member']
-                nome = memberDict['first_name']
-                if 'username' in memberDict:
-                    nome += ' a.k.a. @' + memberDict['username']
-                sendMessage(chatId, 'Benvenuto/a ' + nome)
+                sendMessage(
+                    chatId,
+                    'Benvenuto/a ' + estrNomeUser(memberDict)
+                )
             if 'text' in result['message']:
                 text = result['message']['text']
                 if text.startswith('/stato'):
                     secUptime = str(int(time.time() - startTime))
-                    sendMessage(chatId, 'Bot online da ' + secUptime + ' secondi')
+                    sendMessage(
+                        chatId,
+                        'Bot online da ' + secUptime + ' secondi'
+                    )
                 if text.startswith('/aiuto'):
                     cmdAiutoFile = open('cmdAiuto.txt', 'r')
-                    sendMessage(chatId, str(cmdAiutoFile.read()))
+                    sendMessage(
+                        chatId,
+                        str(cmdAiutoFile.read())
+                    )
                     cmdAiutoFile.close()
+                if text.startswith('/saluta'):
+                    memberDict = result['message']['from']
+                    sendMessage(
+                        chatId,
+                        'Ciao ' + estrNomeUser(memberDict)
+                    )
