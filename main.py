@@ -3,7 +3,7 @@ import requests
 import signal
 import time
 
-
+# Gestione interruzione script
 run = True
 startTime = time.time()
 
@@ -14,6 +14,7 @@ def handler_stop_signals(signum, frame):
 
 signal.signal(signal.SIGINT, handler_stop_signals)
 signal.signal(signal.SIGTERM, handler_stop_signals)
+# Fine
 
 
 token = ""
@@ -27,6 +28,17 @@ infoBotDict = json.loads(infoBot.text)
 botUsername = infoBotDict['result']['username']
 
 
+def nuovaRichiesta(urlRichiesta):
+    try:
+        risposta = requests.get(urlRichiesta)
+    except requests.exceptions.ConnectionError:
+        print('Errore di connessione')
+        time.sleep(60)
+        risposta = nuovaRichiesta(urlRichiesta)
+
+    return risposta
+
+
 def richiesteLog(rispostaText):
     richiesteLogFile = open('richieste.log', 'a')
     richiesteLogFile.write(rispostaText + '\n')
@@ -37,7 +49,7 @@ def sendMessage(chatId, text):
     urlRichiesta = apiUrl + token + '/sendMessage' \
         '?chat_id=' + chatId + '&text=' + text
     print(urlRichiesta)
-    richiesteLog(requests.get(urlRichiesta).text)
+    richiesteLog(nuovaRichiesta(urlRichiesta).text)
 
 
 def estrNomeUser(memberDict):
@@ -56,10 +68,7 @@ def verComando(testo, comando):
     return amm
 
 
-while True:
-    if not run:
-        break
-
+while run:
     try:
         offsetFile = open('offset', 'r')
         offset = int(offsetFile.read())+1
@@ -70,7 +79,7 @@ while True:
     urlRichiesta = apiUrl + token + '/getUpdates' \
         + '?offset=' + str(offset) + '&timeout=' + str(timeout)
     print(urlRichiesta)
-    risposta = requests.get(urlRichiesta)
+    risposta = nuovaRichiesta(urlRichiesta)
     rispostaDict = json.loads(risposta.text)
 
     for result in rispostaDict['result']:
