@@ -1,9 +1,16 @@
+from datetime import datetime
+from rfc3339 import rfc3339
 import json
 import requests
 import signal
 import time
 import os.path
 import sqlite3
+
+# Dati bot
+token = ""
+apiUrl = "https://api.telegram.org/bot"
+timeout = 15
 
 # Gestione interruzione script
 run = True
@@ -22,15 +29,36 @@ dbFile = 'logBase.sqlite'
 dbEsiste = os.path.isfile(dbFile)
 connDB = sqlite3.connect(dbFile)
 cursDB = connDB.cursor()
+rawUpdateCyc = 1
 
 if not dbEsiste:
     cursDB.execute(
         '''
             CREATE TABLE `rawUpdate` (
                 `id`            INTEGER NOT NULL UNIQUE,
-                `unixTime`      INTEGER NOT NULL,
+                `rfcTime`       TEXT NOT NULL,
                 `urlTg`         TEXT NOT NULL,
                 `updateText`    TEXT NOT NULL
+            );
+        '''
+    )
+    connDB.commit()
+    cursDB.execute(
+        '''
+            CREATE TABLE `provRichieste` (
+                `id`            INTEGER PRIMARY KEY AUTOINCREMENT,
+                `rfcTime`       TEXT NOT NULL,
+                `chat`          INTEGER NOT NULL
+            );
+        '''
+    )
+    connDB.commit()
+    cursDB.execute(
+        '''
+            CREATE TABLE `errori` (
+                `id`            INTEGER PRIMARY KEY AUTOINCREMENT,
+                `rfcTime`       TEXT NOT NULL,
+                `tipoErrore`    TEXT NOT NULL
             );
         '''
     )
@@ -38,19 +66,14 @@ if not dbEsiste:
     for rowInt in range(1, 11):
         cursDB.execute(
             '''
-            INSERT INTO `rawUpdate` (`id`, `unixTime`, `urlTg`, `updateText`)
+            INSERT INTO `rawUpdate` (`id`, `rfcTime`, `urlTg`, `updateText`)
             VALUES (?, ?, ?, ?);
             ''',
-            (rowInt, rowInt, str(rowInt), str(rowInt))
+            (rowInt, str(rowInt), str(rowInt), str(rowInt))
         )
     connDB.commit()
 
-rawUpdateCyc = 1
 
-
-token = ""
-apiUrl = "https://api.telegram.org/bot"
-timeout = 15
 try:
     offsetFile = open('offset', 'r')
     offset = int(offsetFile.read())
@@ -64,11 +87,26 @@ infoBotDict = json.loads(infoBot.text)
 botUsername = infoBotDict['result']['username']
 
 
+def rfcTime():
+    return str(rfc3339(datetime.now()))
+
+
+def salvaErrore(tipoErrore):
+    cursDB.execute(
+        '''
+        INSERT INTO `errori` (`rfcTime`, `tipoErrore`)
+        VALUES (?, ?);
+        ''',
+        (rfcTime(), str(tipoErrore))
+    )
+    connDB.commit()
+
+
 def nuovaRichiesta(urlRichiesta):
     try:
         risposta = requests.get(urlRichiesta)
     except requests.exceptions.ConnectionError:
-        print(str(time.ctime()) + ' Errore di connessione')
+        salvaErrore('Errore di connessione')
         time.sleep(60)
         risposta = nuovaRichiesta(urlRichiesta)
 
@@ -78,11 +116,10 @@ def nuovaRichiesta(urlRichiesta):
     cursDB.execute(
         '''
         UPDATE `rawUpdate`
-        SET `unixTime`=?, `urlTg`=?, `updateText`=?
+        SET `rfcTime`=?, `urlTg`=?, `updateText`=?
         WHERE `id`=?;
         ''',
-        (int(time.time()), str(urlRichiesta), str(risposta.text),
-            int(rawUpdateCyc))
+        (rfcTime(), str(urlRichiesta), str(risposta.text), int(rawUpdateCyc))
     )
     connDB.commit()
     rawUpdateCyc += 1
@@ -132,6 +169,15 @@ while True:
 
         if 'message' in result:
             chatId = str(result['message']['chat']['id'])
+            cursDB.execute(
+                '''
+                INSERT INTO `provRichieste` (`rfcTime`, `chat`)
+                VALUES (?, ?);
+                ''',
+                (rfcTime(), int(chatId))
+            )
+            connDB.commit()
+
             if 'new_chat_member' in result['message']:
                 memberDict = result['message']['new_chat_member']
                 sendMessage(
