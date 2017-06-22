@@ -48,7 +48,8 @@ if not dbEsiste:
             CREATE TABLE `provRichieste` (
                 `id`            INTEGER PRIMARY KEY AUTOINCREMENT,
                 `rfcTime`       TEXT NOT NULL,
-                `chat`          INTEGER NOT NULL
+                `chat`          INTEGER NOT NULL,
+                `tipoRichiesta` TEXT NOT NULL
             );
         '''
     )
@@ -102,13 +103,37 @@ def salvaErrore(tipoErrore):
     connDB.commit()
 
 
-def nuovaRichiesta(urlRichiesta):
+def salvaProv(chatId, tipoRichiesta):
+    cursDB.execute(
+        '''
+        INSERT INTO `provRichieste` (`rfcTime`, `chat`, `tipoRichiesta`)
+        VALUES (?, ?, ?);
+        ''',
+        (rfcTime(), int(chatId), str(tipoRichiesta))
+    )
+    connDB.commit()
+
+
+def nuovaRichiesta(urlRichiesta, dati=None):
     try:
-        risposta = requests.get(urlRichiesta)
+        if not dati:
+            risposta = requests.get(urlRichiesta)
+        else:
+            headers = {'Content-Type': 'application/json'}
+            risposta = requests.post(
+                urlRichiesta,
+                headers=headers,
+                data=json.dumps(dati)
+            )
     except requests.exceptions.ConnectionError:
         salvaErrore('Errore di connessione')
         time.sleep(60)
-        risposta = nuovaRichiesta(urlRichiesta)
+        risposta = nuovaRichiesta(urlRichiesta, dati)
+
+    if risposta.status_code != 200:
+        salvaErrore('Codice non corretto -> ' + str(risposta.status_code))
+        time.sleep(60)
+        risposta = nuovaRichiesta(urlRichiesta, dati)
 
     global rawUpdateCyc
     if rawUpdateCyc > 10:
@@ -129,7 +154,7 @@ def nuovaRichiesta(urlRichiesta):
 
 def sendMessage(chatId, text):
     urlRichiesta = apiUrl + token + '/sendMessage' \
-        '?chat_id=' + chatId + '&text=' + text
+        + '?chat_id=' + str(chatId) + '&text=' + text
     nuovaRichiesta(urlRichiesta)
 
 
@@ -147,6 +172,10 @@ def verComando(testo, comando):
     elif testo == comando + '@' + botUsername:
         amm = True
     return amm
+
+
+def botOnlineText(time):
+    return str('Bot *online* da _' + str(time) + ' Secondi_')
 
 
 while True:
@@ -169,15 +198,7 @@ while True:
 
         if 'message' in result:
             chatId = str(result['message']['chat']['id'])
-            cursDB.execute(
-                '''
-                INSERT INTO `provRichieste` (`rfcTime`, `chat`)
-                VALUES (?, ?);
-                ''',
-                (rfcTime(), int(chatId))
-            )
-            connDB.commit()
-
+            salvaProv(chatId, 'message')
             if 'new_chat_member' in result['message']:
                 memberDict = result['message']['new_chat_member']
                 sendMessage(
@@ -188,10 +209,26 @@ while True:
                 text = result['message']['text']
                 if verComando(text, '/stato'):
                     secUptime = str(int(time.time() - startTime))
-                    sendMessage(
-                        chatId,
-                        'Bot online da ' + secUptime + ' secondi'
-                    )
+                    dati = {
+                        'chat_id': chatId,
+                        'text': botOnlineText(secUptime),
+                        'parse_mode': 'Markdown',
+                        'reply_markup': {'inline_keyboard': [[
+                                    {
+                                        'text': 'Giorni',
+                                        'callback_data': 'giorni,'+secUptime
+                                    },
+                                    {
+                                        'text': 'Ore',
+                                        'callback_data': 'ore,'+secUptime
+                                    },
+                                    {
+                                        'text': 'Minuti',
+                                        'callback_data': 'minuti,'+secUptime
+                                    }
+                                ]]}
+                    }
+                    nuovaRichiesta(apiUrl + token + '/sendMessage', dati)
                 if verComando(text, '/aiuto'):
                     cmdAiutoFile = open('cmdAiuto.txt', 'r')
                     sendMessage(
@@ -205,3 +242,36 @@ while True:
                         chatId,
                         'Ciao ' + estrNomeUser(memberDict)
                     )
+        if 'callback_query' in result:
+            callback = result['callback_query']
+            chatId = str(callback['message']['chat']['id'])
+            salvaProv(chatId, 'callback')
+            if 'data' in callback:
+                messageId = str(callback['message']['message_id'])
+                messageText = str(callback['message']['text'])
+                divDati = callback['data'].split(',')
+                calcTime = None
+                toTime = str(divDati[0])
+
+                minuti, secondi = divmod(int(divDati[1]), 60)
+                if 'minuti' == toTime:
+                    calcTime = str(minuti) + ' Minuti ' \
+                        + str(secondi)
+                ore, minuti = divmod(minuti, 60)
+                if 'ore' == toTime:
+                    calcTime = str(ore) + ' Ore ' \
+                        + str(minuti) + ' Minuti ' \
+                        + str(secondi)
+                giorni, ore = divmod(ore, 24)
+                if 'giorni' == toTime:
+                    calcTime = str(giorni) + ' Giorni ' \
+                        + str(ore) + ' Ore ' \
+                        + str(minuti) + ' Minuti ' \
+                        + str(secondi)
+
+                if calcTime:
+                    editText = botOnlineText(calcTime)
+                    urlRichiesta = apiUrl + token + '/editMessageText' \
+                        + '?chat_id=' + chatId + '&message_id=' + messageId \
+                        + '&text=' + editText + '&parse_mode=Markdown'
+                    nuovaRichiesta(urlRichiesta)
