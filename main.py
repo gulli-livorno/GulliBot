@@ -178,6 +178,22 @@ def botOnlineText(time):
     return str('Bot *online* da _' + str(time) + ' Secondi_')
 
 
+def pluraliTemp(temp, unita):
+    if temp == 1:
+        temp = str(temp)
+        if unita == 'Minuti':
+            temp = temp + ' Minuto '
+        elif unita == 'Ore':
+            temp = temp + ' Ora '
+        elif unita == 'Giorni':
+            temp = temp + ' Giorno '
+        return temp
+    else:
+        temp = str(temp)
+        temp = temp + ' ' + unita + ' '
+        return temp
+
+
 while True:
     if not run:
         offsetFile = open('offset', 'w')
@@ -255,18 +271,18 @@ while True:
 
                 minuti, secondi = divmod(int(divDati[1]), 60)
                 if 'minuti' == toTime:
-                    calcTime = str(minuti) + ' Minuti ' \
+                    calcTime = pluraliTemp(minuti, 'Minuti') \
                         + str(secondi)
                 ore, minuti = divmod(minuti, 60)
                 if 'ore' == toTime:
-                    calcTime = str(ore) + ' Ore ' \
-                        + str(minuti) + ' Minuti ' \
+                    calcTime = pluraliTemp(ore, 'Ore') \
+                        + pluraliTemp(minuti, 'Minuti') \
                         + str(secondi)
                 giorni, ore = divmod(ore, 24)
                 if 'giorni' == toTime:
-                    calcTime = str(giorni) + ' Giorni ' \
-                        + str(ore) + ' Ore ' \
-                        + str(minuti) + ' Minuti ' \
+                    calcTime = pluraliTemp(giorni, 'Giorni') \
+                        + pluraliTemp(ore, 'Ore') \
+                        + pluraliTemp(minuti, 'Minuti') \
                         + str(secondi)
 
                 if calcTime:
