@@ -43,6 +43,7 @@ if not dbEsiste:
             );
             CREATE TABLE `provRichieste` (
                 `chat`          INTEGER NOT NULL UNIQUE,
+                `nome`          TEXT NOT NULL,
                 `rfcTime`       TEXT NOT NULL,
                 `totRic`        INTEGER NOT NULL
             );
@@ -81,14 +82,18 @@ def salvaErrore(tipoErrore):
     connDB.commit()
 
 
-def salvaProv(chatId, tipoRichiesta):
+def salvaProv(chatId, chatNome):
     cursDB.execute(
-        'INSERT OR IGNORE INTO `provRichieste` VALUES (?, ?, 0);',
-        (int(chatId), rfcTime())
+        'INSERT OR IGNORE INTO `provRichieste` VALUES (?, ?, ?, 0);',
+        (int(chatId), str(chatNome), rfcTime())
     )
     cursDB.execute(
-        'UPDATE `provRichieste` SET rfcTime=?, totRic=totRic+1 WHERE chat=?',
-        (rfcTime(), int(chatId))
+        '''
+            UPDATE `provRichieste`
+            SET nome=?, rfcTime=?, totRic=totRic+1
+            WHERE chat=?
+        ''',
+        (str(chatNome), rfcTime(), int(chatId))
     )
     connDB.commit()
 
@@ -198,7 +203,11 @@ while True:
 
         if 'message' in result:
             chatId = str(result['message']['chat']['id'])
-            salvaProv(chatId, 'message')
+            if 'first_name' in result['message']['chat']:
+                chatNome = str(result['message']['chat']['first_name'])
+            else:
+                chatNome = str(result['message']['chat']['title'])
+            salvaProv(chatId, chatNome)
             if 'new_chat_member' in result['message']:
                 memberDict = result['message']['new_chat_member']
                 sendMessage(
@@ -246,11 +255,17 @@ while True:
         if 'callback_query' in result:
             callback = result['callback_query']
             chatId = str(callback['message']['chat']['id'])
-            salvaProv(chatId, 'callback')
+            if 'first_name' in callback['message']['chat']:
+                chatNome = str(callback['message']['chat']['first_name'])
+            else:
+                chatNome = str(callback['message']['chat']['title'])
+            salvaProv(chatId, chatNome)
             if 'data' in callback:
                 messageId = str(callback['message']['message_id'])
                 messageText = str(callback['message']['text'])
                 divDati = callback['data'].split(',')
+                if len(divDati) < 2:
+                    divDati = ['0', 0]
                 calcTime = None
                 toTime = str(divDati[0])
 
