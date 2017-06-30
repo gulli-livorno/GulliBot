@@ -10,6 +10,7 @@ import sqlite3
 # Dati bot
 token = ""
 apiUrl = "https://api.telegram.org/bot"
+auT = apiUrl + token
 timeout = 15
 
 # Gestione interruzione script
@@ -29,33 +30,22 @@ dbFile = 'logBase.sqlite'
 dbEsiste = os.path.isfile(dbFile)
 connDB = sqlite3.connect(dbFile)
 cursDB = connDB.cursor()
-rawUpdateCyc = 1
+lastRicCyc = 1
 
 if not dbEsiste:
-    cursDB.execute(
+    cursDB.executescript(
         '''
-            CREATE TABLE `rawUpdate` (
+            CREATE TABLE `lastRic` (
                 `id`            INTEGER NOT NULL UNIQUE,
                 `rfcTime`       TEXT NOT NULL,
-                `urlTg`         TEXT NOT NULL,
-                `updateText`    TEXT NOT NULL
+                `urlRic`        TEXT NOT NULL,
+                `textRic`       TEXT NOT NULL
             );
-        '''
-    )
-    connDB.commit()
-    cursDB.execute(
-        '''
             CREATE TABLE `provRichieste` (
-                `id`            INTEGER PRIMARY KEY AUTOINCREMENT,
+                `chat`          INTEGER NOT NULL UNIQUE,
                 `rfcTime`       TEXT NOT NULL,
-                `chat`          INTEGER NOT NULL,
-                `tipoRichiesta` TEXT NOT NULL
+                `totRic`        INTEGER NOT NULL
             );
-        '''
-    )
-    connDB.commit()
-    cursDB.execute(
-        '''
             CREATE TABLE `errori` (
                 `id`            INTEGER PRIMARY KEY AUTOINCREMENT,
                 `rfcTime`       TEXT NOT NULL,
@@ -63,15 +53,6 @@ if not dbEsiste:
             );
         '''
     )
-    connDB.commit()
-    for rowInt in range(1, 11):
-        cursDB.execute(
-            '''
-            INSERT INTO `rawUpdate` (`id`, `rfcTime`, `urlTg`, `updateText`)
-            VALUES (?, ?, ?, ?);
-            ''',
-            (rowInt, str(rowInt), str(rowInt), str(rowInt))
-        )
     connDB.commit()
 
 
@@ -94,10 +75,7 @@ def rfcTime():
 
 def salvaErrore(tipoErrore):
     cursDB.execute(
-        '''
-        INSERT INTO `errori` (`rfcTime`, `tipoErrore`)
-        VALUES (?, ?);
-        ''',
+        'INSERT INTO `errori` (`rfcTime`, `tipoErrore`) VALUES (?, ?);',
         (rfcTime(), str(tipoErrore))
     )
     connDB.commit()
@@ -105,57 +83,60 @@ def salvaErrore(tipoErrore):
 
 def salvaProv(chatId, tipoRichiesta):
     cursDB.execute(
-        '''
-        INSERT INTO `provRichieste` (`rfcTime`, `chat`, `tipoRichiesta`)
-        VALUES (?, ?, ?);
-        ''',
-        (rfcTime(), int(chatId), str(tipoRichiesta))
+        'INSERT OR IGNORE INTO `provRichieste` VALUES (?, ?, 0);',
+        (int(chatId), rfcTime())
+    )
+    cursDB.execute(
+        'UPDATE `provRichieste` SET rfcTime=?, totRic=totRic+1 WHERE chat=?',
+        (rfcTime(), int(chatId))
     )
     connDB.commit()
 
 
-def nuovaRichiesta(urlRichiesta, dati=None):
+def nuovaRichiesta(urlRic, parRic=None, datRic=None):
     try:
-        if not dati:
-            risposta = requests.get(urlRichiesta)
-        else:
+        if parRic:
+            risposta = requests.get(urlRic, params=parRic)
+        elif datRic:
             headers = {'Content-Type': 'application/json'}
             risposta = requests.post(
-                urlRichiesta,
+                urlRic,
                 headers=headers,
-                data=json.dumps(dati)
+                data=json.dumps(datRic)
             )
+        else:
+            risposta = requests.get(urlRic)
     except requests.exceptions.ConnectionError:
         salvaErrore('Errore di connessione')
         time.sleep(60)
-        risposta = nuovaRichiesta(urlRichiesta, dati)
+        risposta = nuovaRichiesta(urlRic, parRic=parRic, datRic=datRic)
 
     if risposta.status_code != 200:
         salvaErrore('Codice non corretto -> ' + str(risposta.status_code))
         time.sleep(60)
-        risposta = nuovaRichiesta(urlRichiesta, dati)
+        risposta = nuovaRichiesta(urlRic, parRic=parRic, datRic=datRic)
 
-    global rawUpdateCyc
-    if rawUpdateCyc > 10:
-        rawUpdateCyc = 1
+    global lastRicCyc
+    if lastRicCyc > 10:
+        lastRicCyc = 1
+
     cursDB.execute(
-        '''
-        UPDATE `rawUpdate`
-        SET `rfcTime`=?, `urlTg`=?, `updateText`=?
-        WHERE `id`=?;
-        ''',
-        (rfcTime(), str(urlRichiesta), str(risposta.text), int(rawUpdateCyc))
+        'INSERT OR REPLACE INTO `lastRic` VALUES (?, ?, ?, ?);',
+        (lastRicCyc, rfcTime(), str(urlRic), str(risposta.text))
     )
     connDB.commit()
-    rawUpdateCyc += 1
+    lastRicCyc += 1
 
     return risposta
 
 
 def sendMessage(chatId, text):
-    urlRichiesta = apiUrl + token + '/sendMessage' \
-        + '?chat_id=' + str(chatId) + '&text=' + text
-    nuovaRichiesta(urlRichiesta)
+    urlRic = auT + '/sendMessage'
+    parRic = {
+        'chat_id': str(chatId),
+        'text': str(text)
+    }
+    nuovaRichiesta(urlRic, parRic=parRic)
 
 
 def estrNomeUser(memberDict):
@@ -205,9 +186,12 @@ while True:
 
         break
 
-    urlRichiesta = apiUrl + token + '/getUpdates' \
-        + '?offset=' + str(offset) + '&timeout=' + str(timeout)
-    rispostaDict = json.loads(nuovaRichiesta(urlRichiesta).text)
+    urlRic = auT + '/getUpdates'
+    parRic = {
+        'offset': str(offset),
+        'timeout': str(timeout)
+    }
+    rispostaDict = json.loads(nuovaRichiesta(urlRic, parRic=parRic).text)
 
     for result in rispostaDict['result']:
         offset = int(result['update_id'])+1
@@ -225,7 +209,8 @@ while True:
                 text = result['message']['text']
                 if verComando(text, '/stato'):
                     secUptime = str(int(time.time() - startTime))
-                    dati = {
+                    urlRic = auT + '/sendMessage'
+                    datRic = {
                         'chat_id': chatId,
                         'text': botOnlineText(secUptime),
                         'parse_mode': 'Markdown',
@@ -244,7 +229,7 @@ while True:
                                     }
                                 ]]}
                     }
-                    nuovaRichiesta(apiUrl + token + '/sendMessage', dati)
+                    nuovaRichiesta(urlRic, datRic=datRic)
                 if verComando(text, '/aiuto'):
                     cmdAiutoFile = open('cmdAiuto.txt', 'r')
                     sendMessage(
@@ -287,7 +272,11 @@ while True:
 
                 if calcTime:
                     editText = botOnlineText(calcTime)
-                    urlRichiesta = apiUrl + token + '/editMessageText' \
-                        + '?chat_id=' + chatId + '&message_id=' + messageId \
-                        + '&text=' + editText + '&parse_mode=Markdown'
-                    nuovaRichiesta(urlRichiesta)
+                    urlRic = auT + '/editMessageText'
+                    parRic = {
+                        'chat_id': str(chatId),
+                        'message_id': str(messageId),
+                        'text': str(editText),
+                        'parse_mode': 'Markdown'
+                    }
+                    nuovaRichiesta(urlRic, parRic=parRic)
