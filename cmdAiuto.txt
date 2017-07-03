@@ -2,3 +2,4 @@ Comandi disponibili:
 /stato - Stato del bot
 /aiuto - Lista comandi disponibili
 /saluta - Ti saluto
+/eventi - Prossimi eventi

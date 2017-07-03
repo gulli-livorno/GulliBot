@@ -1,5 +1,6 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from rfc3339 import rfc3339
+import iso8601
 import json
 import requests
 import signal
@@ -13,6 +14,11 @@ apiUrl = "https://api.telegram.org/bot"
 auT = apiUrl + token
 timeout = 15
 
+# Dati API Google
+keyGoogleApi = ""
+urlGoogleCal = "https://www.googleapis.com/calendar/v3/calendars/" \
+    + "gulligle@gmail.com/events"
+
 # Gestione interruzione script
 run = True
 startTime = time.time()
@@ -21,6 +27,7 @@ startTime = time.time()
 def handler_stop_signals(signum, frame):
     global run
     run = False
+
 
 signal.signal(signal.SIGINT, handler_stop_signals)
 signal.signal(signal.SIGTERM, handler_stop_signals)
@@ -116,11 +123,6 @@ def nuovaRichiesta(urlRic, parRic=None, datRic=None):
         time.sleep(60)
         risposta = nuovaRichiesta(urlRic, parRic=parRic, datRic=datRic)
 
-    if risposta.status_code != 200:
-        salvaErrore('Codice non corretto -> ' + str(risposta.status_code))
-        time.sleep(60)
-        risposta = nuovaRichiesta(urlRic, parRic=parRic, datRic=datRic)
-
     global lastRicCyc
     if lastRicCyc > 10:
         lastRicCyc = 1
@@ -132,15 +134,22 @@ def nuovaRichiesta(urlRic, parRic=None, datRic=None):
     connDB.commit()
     lastRicCyc += 1
 
+    if risposta.status_code != 200:
+        salvaErrore('Codice non corretto -> ' + str(risposta.status_code))
+        time.sleep(60)
+        risposta = nuovaRichiesta(urlRic, parRic=parRic, datRic=datRic)
+
     return risposta
 
 
-def sendMessage(chatId, text):
+def sendMessage(chatId, text, md=False):
     urlRic = auT + '/sendMessage'
     parRic = {
         'chat_id': str(chatId),
         'text': str(text)
     }
+    if md:
+        parRic['parse_mode'] = 'Markdown'
     nuovaRichiesta(urlRic, parRic=parRic)
 
 
@@ -178,6 +187,45 @@ def pluraliTemp(temp, unita):
         temp = str(temp)
         temp = temp + ' ' + unita + ' '
         return temp
+
+
+def eventiCal(chatId):
+    parRic = {
+        'key': str(keyGoogleApi),
+        'timeMin': rfcTime()
+    }
+    eventiDict = json.loads(nuovaRichiesta(urlGoogleCal, parRic=parRic).text)
+    if len(eventiDict['items']) > 0:
+        for evento in eventiDict['items']:
+            eventoTot = '*' + evento['summary'] + '*\n'
+
+            if 'dateTime' in evento['start']:
+                inizio = iso8601.parse_date(evento['start']['dateTime'])
+            else:
+                inizio = iso8601.parse_date(evento['start']['date'])
+                inizio = inizio.replace(hour=00, minute=00)
+            if 'dateTime' in evento['end']:
+                fine = iso8601.parse_date(evento['end']['dateTime'])
+            else:
+                fine = iso8601.parse_date(evento['end']['date'])
+                fine -= timedelta(days=1)
+                fine = fine.replace(hour=23, minute=59)
+
+            if inizio.day == fine.day:
+                if int((fine-inizio).total_seconds()) == 86340:
+                    eventoTot += inizio.strftime("_%d/%m/%Y_\n")
+                    eventoTot += 'Tutto il giorno\n'
+                else:
+                    eventoTot += inizio.strftime("_%d/%m/%Y_\n%H:%M - ")
+                    eventoTot += fine.strftime("%H:%M\n")
+            else:
+                eventoTot += inizio.strftime("_Dal_\n%d/%m/%Y %H:%M\n")
+                eventoTot += fine.strftime("_Al_\n%d/%m/%Y %H:%M\n")
+
+            sendMessage(chatId, eventoTot, True)
+
+    else:
+        sendMessage(chatId, '_Nessun evento in programma_', True)
 
 
 while True:
@@ -252,6 +300,8 @@ while True:
                         chatId,
                         'Ciao ' + estrNomeUser(memberDict)
                     )
+                if verComando(text, '/eventi'):
+                    eventiCal(chatId)
         if 'callback_query' in result:
             callback = result['callback_query']
             chatId = str(callback['message']['chat']['id'])
