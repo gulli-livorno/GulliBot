@@ -189,7 +189,32 @@ def pluraliTemp(temp, unita):
         return temp
 
 
-def eventiCal(chatId):
+def statoCmd(chatId):
+    secUptime = str(int(time.time() - startTime))
+    urlRic = auT + '/sendMessage'
+    datRic = {
+        'chat_id': chatId,
+        'text': botOnlineText(secUptime),
+        'parse_mode': 'Markdown',
+        'reply_markup': {'inline_keyboard': [[
+                    {
+                        'text': 'Giorni',
+                        'callback_data': 'giorni,'+secUptime
+                    },
+                    {
+                        'text': 'Ore',
+                        'callback_data': 'ore,'+secUptime
+                    },
+                    {
+                        'text': 'Minuti',
+                        'callback_data': 'minuti,'+secUptime
+                    }
+                ]]}
+    }
+    nuovaRichiesta(urlRic, datRic=datRic)
+
+
+def eventiCmd(chatId):
     parRic = {
         'key': str(keyGoogleApi),
         'timeMin': rfcTime()
@@ -228,6 +253,83 @@ def eventiCal(chatId):
         sendMessage(chatId, '_Nessun evento in programma_', True)
 
 
+def messageRes(message):
+    chatId = str(message['chat']['id'])
+    if 'first_name' in message['chat']:
+        chatNome = str(message['chat']['first_name'])
+    else:
+        chatNome = str(message['chat']['title'])
+    salvaProv(chatId, chatNome)
+    if 'new_chat_member' in message:
+        memberDict = message['new_chat_member']
+        sendMessage(
+            chatId,
+            'Benvenuto/a ' + estrNomeUser(memberDict)
+        )
+    if 'text' in message:
+        text = message['text']
+        if verComando(text, '/stato'):
+            statoCmd(chatId)
+        if verComando(text, '/aiuto'):
+            cmdAiutoFile = open('cmdAiuto.txt', 'r')
+            sendMessage(
+                chatId,
+                str(cmdAiutoFile.read())
+            )
+            cmdAiutoFile.close()
+        if verComando(text, '/saluta'):
+            memberDict = message['from']
+            sendMessage(
+                chatId,
+                'Ciao ' + estrNomeUser(memberDict)
+            )
+        if verComando(text, '/eventi'):
+            eventiCmd(chatId)
+
+
+def callbackRes(callback):
+    chatId = str(callback['message']['chat']['id'])
+    if 'first_name' in callback['message']['chat']:
+        chatNome = str(callback['message']['chat']['first_name'])
+    else:
+        chatNome = str(callback['message']['chat']['title'])
+    salvaProv(chatId, chatNome)
+    if 'data' in callback:
+        messageId = str(callback['message']['message_id'])
+        divDati = callback['data'].split(',')
+        if len(divDati) < 2:
+            divDati = ['0', 0]
+        calcTime = None
+        toTime = str(divDati[0])
+
+        minuti, secondi = divmod(int(divDati[1]), 60)
+        if 'minuti' == toTime:
+            calcTime = pluraliTemp(minuti, 'Minuti') \
+                + str(secondi)
+        ore, minuti = divmod(minuti, 60)
+        if 'ore' == toTime:
+            calcTime = pluraliTemp(ore, 'Ore') \
+                + pluraliTemp(minuti, 'Minuti') \
+                + str(secondi)
+        giorni, ore = divmod(ore, 24)
+        if 'giorni' == toTime:
+            calcTime = pluraliTemp(giorni, 'Giorni') \
+                + pluraliTemp(ore, 'Ore') \
+                + pluraliTemp(minuti, 'Minuti') \
+                + str(secondi)
+
+        if calcTime:
+            editText = botOnlineText(calcTime)
+            urlRic = auT + '/editMessageText'
+            parRic = {
+                'chat_id': str(chatId),
+                'message_id': str(messageId),
+                'text': str(editText),
+                'parse_mode': 'Markdown'
+            }
+            nuovaRichiesta(urlRic, parRic=parRic)
+
+
 while True:
     if not run:
         offsetFile = open('offset', 'w')
@@ -250,98 +352,6 @@ while True:
         offset = int(result['update_id'])+1
 
         if 'message' in result:
-            chatId = str(result['message']['chat']['id'])
-            if 'first_name' in result['message']['chat']:
-                chatNome = str(result['message']['chat']['first_name'])
-            else:
-                chatNome = str(result['message']['chat']['title'])
-            salvaProv(chatId, chatNome)
-            if 'new_chat_member' in result['message']:
-                memberDict = result['message']['new_chat_member']
-                sendMessage(
-                    chatId,
-                    'Benvenuto/a ' + estrNomeUser(memberDict)
-                )
-            if 'text' in result['message']:
-                text = result['message']['text']
-                if verComando(text, '/stato'):
-                    secUptime = str(int(time.time() - startTime))
-                    urlRic = auT + '/sendMessage'
-                    datRic = {
-                        'chat_id': chatId,
-                        'text': botOnlineText(secUptime),
-                        'parse_mode': 'Markdown',
-                        'reply_markup': {'inline_keyboard': [[
-                                    {
-                                        'text': 'Giorni',
-                                        'callback_data': 'giorni,'+secUptime
-                                    },
-                                    {
-                                        'text': 'Ore',
-                                        'callback_data': 'ore,'+secUptime
-                                    },
-                                    {
-                                        'text': 'Minuti',
-                                        'callback_data': 'minuti,'+secUptime
-                                    }
-                                ]]}
-                    }
-                    nuovaRichiesta(urlRic, datRic=datRic)
-                if verComando(text, '/aiuto'):
-                    cmdAiutoFile = open('cmdAiuto.txt', 'r')
-                    sendMessage(
-                        chatId,
-                        str(cmdAiutoFile.read())
-                    )
-                    cmdAiutoFile.close()
-                if verComando(text, '/saluta'):
-                    memberDict = result['message']['from']
-                    sendMessage(
-                        chatId,
-                        'Ciao ' + estrNomeUser(memberDict)
-                    )
-                if verComando(text, '/eventi'):
-                    eventiCal(chatId)
+            messageRes(result['message'])
         if 'callback_query' in result:
-            callback = result['callback_query']
-            chatId = str(callback['message']['chat']['id'])
-            if 'first_name' in callback['message']['chat']:
-                chatNome = str(callback['message']['chat']['first_name'])
-            else:
-                chatNome = str(callback['message']['chat']['title'])
-            salvaProv(chatId, chatNome)
-            if 'data' in callback:
-                messageId = str(callback['message']['message_id'])
-                messageText = str(callback['message']['text'])
-                divDati = callback['data'].split(',')
-                if len(divDati) < 2:
-                    divDati = ['0', 0]
-                calcTime = None
-                toTime = str(divDati[0])
-
-                minuti, secondi = divmod(int(divDati[1]), 60)
-                if 'minuti' == toTime:
-                    calcTime = pluraliTemp(minuti, 'Minuti') \
-                        + str(secondi)
-                ore, minuti = divmod(minuti, 60)
-                if 'ore' == toTime:
-                    calcTime = pluraliTemp(ore, 'Ore') \
-                        + pluraliTemp(minuti, 'Minuti') \
-                        + str(secondi)
-                giorni, ore = divmod(ore, 24)
-                if 'giorni' == toTime:
-                    calcTime = pluraliTemp(giorni, 'Giorni') \
-                        + pluraliTemp(ore, 'Ore') \
-                        + pluraliTemp(minuti, 'Minuti') \
-                        + str(secondi)
-
-                if calcTime:
-                    editText = botOnlineText(calcTime)
-                    urlRic = auT + '/editMessageText'
-                    parRic = {
-                        'chat_id': str(chatId),
-                        'message_id': str(messageId),
-                        'text': str(editText),
-                        'parse_mode': 'Markdown'
-                    }
-                    nuovaRichiesta(urlRic, parRic=parRic)
+            callbackRes(result['callback_query'])
