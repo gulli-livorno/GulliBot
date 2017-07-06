@@ -1,3 +1,4 @@
+from varpro import token, keyGoogleApi
 from datetime import datetime, timedelta
 from rfc3339 import rfc3339
 import iso8601
@@ -9,13 +10,11 @@ import os.path
 import sqlite3
 
 # Dati bot
-token = ""
 apiUrl = "https://api.telegram.org/bot"
 auT = apiUrl + token
 timeout = 15
 
 # Dati API Google
-keyGoogleApi = ""
 urlGoogleCal = "https://www.googleapis.com/calendar/v3/calendars/" \
     + "gulligle@gmail.com/events"
 
@@ -160,6 +159,14 @@ def estrNomeUser(memberDict):
     return nu
 
 
+def estrNomeChat(message):
+    if 'first_name' in message['chat']:
+        nome = str(message['chat']['first_name'])
+    else:
+        nome = str(message['chat']['title'])
+    return nome
+
+
 def verComando(testo, comando):
     amm = False
     if testo == comando:
@@ -250,16 +257,12 @@ def eventiCmd(chatId):
             sendMessage(chatId, eventoTot, True)
 
     else:
-        sendMessage(chatId, '_Nessun evento in programma_', True)
+        sendMessage(chatId, '*Nessun evento in programma*', True)
 
 
 def messageRes(message):
     chatId = str(message['chat']['id'])
-    if 'first_name' in message['chat']:
-        chatNome = str(message['chat']['first_name'])
-    else:
-        chatNome = str(message['chat']['title'])
-    salvaProv(chatId, chatNome)
+    salvaProv(chatId, estrNomeChat(message))
     if 'new_chat_member' in message:
         memberDict = message['new_chat_member']
         sendMessage(
@@ -289,11 +292,7 @@ def messageRes(message):
 
 def callbackRes(callback):
     chatId = str(callback['message']['chat']['id'])
-    if 'first_name' in callback['message']['chat']:
-        chatNome = str(callback['message']['chat']['first_name'])
-    else:
-        chatNome = str(callback['message']['chat']['title'])
-    salvaProv(chatId, chatNome)
+    salvaProv(chatId, estrNomeChat(callback['message']))
     if 'data' in callback:
         messageId = str(callback['message']['message_id'])
         divDati = callback['data'].split(',')

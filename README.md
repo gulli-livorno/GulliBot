@@ -14,4 +14,3 @@ Codice sorgente del bot
 [Travis]: https://travis-ci.org/gulli-livorno/GulliBot
 [Release]: https://github.com/gulli-livorno/GulliBot/releases/latest
 [License]: https://github.com/gulli-livorno/GulliBot/blob/master/LICENSE
-

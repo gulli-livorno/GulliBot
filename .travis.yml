@@ -4,10 +4,9 @@ python:
   - "3.4"
   - "3.5"
   - "3.6"
-git:
-  depth: 3
-install: "pip install flake8"
-script: "flake8 main.py"
+install:
+  - pip install flake8
+script:
+  - find . -name \*.py -exec flake8 {} +
 notifications:
   email: false
-
