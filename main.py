@@ -8,15 +8,22 @@ import signal
 import time
 import os.path
 import sqlite3
+import re
 
 # Dati bot
 apiUrl = "https://api.telegram.org/bot"
 auT = apiUrl + token
 timeout = 15
 
+paginaGitHub = 'https://github.com/gulli-livorno/GulliBot'
+paginaTravis = 'https://travis-ci.org/gulli-livorno/GulliBot'
+
 # Dati API Google
 urlGoogleCal = "https://www.googleapis.com/calendar/v3/calendars/" \
     + "gulligle@gmail.com/events"
+
+# Regex
+intRex = re.compile('\d+')
 
 # Gestione interruzione script
 run = True
@@ -203,20 +210,22 @@ def statoCmd(chatId):
         'chat_id': chatId,
         'text': botOnlineText(secUptime),
         'parse_mode': 'Markdown',
-        'reply_markup': {'inline_keyboard': [[
-                    {
-                        'text': 'Giorni',
-                        'callback_data': 'giorni,'+secUptime
-                    },
-                    {
-                        'text': 'Ore',
-                        'callback_data': 'ore,'+secUptime
-                    },
-                    {
-                        'text': 'Minuti',
-                        'callback_data': 'minuti,'+secUptime
-                    }
-                ]]}
+        'reply_markup': {
+            'inline_keyboard': [[
+                {
+                    'text': 'Giorni',
+                    'callback_data': 'convSec,giorni,'+secUptime
+                },
+                {
+                    'text': 'Ore',
+                    'callback_data': 'convSec,ore,'+secUptime
+                },
+                {
+                    'text': 'Minuti',
+                    'callback_data': 'convSec,minuti,'+secUptime
+                }
+            ]]
+        }
     }
     nuovaRichiesta(urlRic, datRic=datRic)
 
@@ -260,6 +269,39 @@ def eventiCmd(chatId):
         sendMessage(chatId, '*Nessun evento in programma*', True)
 
 
+def sorgentiCmd(chatId):
+    urlRic = auT + '/sendMessage'
+    datRic = {
+        'chat_id': chatId,
+        'text': 'Il codice sorgente è ospitato su GitHub',
+        'reply_markup': {
+            'inline_keyboard': [
+                [
+                    {
+                        'text': 'GitHub',
+                        'url': paginaGitHub
+                    },
+                    {
+                        'text': 'LICENSA',
+                        'url': paginaGitHub + '/blob/master/LICENSE'
+                    }
+                ],
+                [
+                    {
+                        'text': 'Ultimo rilascio',
+                        'url': paginaGitHub + '/releases/latest'
+                    },
+                    {
+                        'text': 'Travis',
+                        'url': paginaTravis
+                    }
+                ]
+            ]
+        }
+    }
+    nuovaRichiesta(urlRic, datRic=datRic)
+
+
 def messageRes(message):
     chatId = str(message['chat']['id'])
     salvaProv(chatId, estrNomeChat(message))
@@ -288,45 +330,50 @@ def messageRes(message):
             )
         if verComando(text, '/eventi'):
             eventiCmd(chatId)
+        if verComando(text, '/sorgenti'):
+            sorgentiCmd(chatId)
+
+
+def convSec(chatId, messageId, divDati):
+    calcTime = None
+    toTime = str(divDati[1])
+    secondi = int(divDati[2])
+
+    minuti, secondi = divmod(secondi, 60)
+    if 'minuti' == toTime:
+        calcTime = pluraliTemp(minuti, 'Minuti') + str(secondi)
+    ore, minuti = divmod(minuti, 60)
+    if 'ore' == toTime:
+        calcTime = pluraliTemp(ore, 'Ore') \
+            + pluraliTemp(minuti, 'Minuti') + str(secondi)
+    giorni, ore = divmod(ore, 24)
+    if 'giorni' == toTime:
+        calcTime = pluraliTemp(giorni, 'Giorni') \
+            + pluraliTemp(ore, 'Ore') \
+            + pluraliTemp(minuti, 'Minuti') + str(secondi)
+
+    if calcTime:
+        editText = botOnlineText(calcTime)
+        urlRic = auT + '/editMessageText'
+        parRic = {
+            'chat_id': str(chatId),
+            'message_id': str(messageId),
+            'text': str(editText),
+            'parse_mode': 'Markdown'
+        }
+        nuovaRichiesta(urlRic, parRic=parRic)
 
 
 def callbackRes(callback):
     chatId = str(callback['message']['chat']['id'])
+    messageId = str(callback['message']['message_id'])
     salvaProv(chatId, estrNomeChat(callback['message']))
     if 'data' in callback:
-        messageId = str(callback['message']['message_id'])
         divDati = callback['data'].split(',')
-        if len(divDati) < 2:
-            divDati = ['0', 0]
-        calcTime = None
-        toTime = str(divDati[0])
-
-        minuti, secondi = divmod(int(divDati[1]), 60)
-        if 'minuti' == toTime:
-            calcTime = pluraliTemp(minuti, 'Minuti') \
-                + str(secondi)
-        ore, minuti = divmod(minuti, 60)
-        if 'ore' == toTime:
-            calcTime = pluraliTemp(ore, 'Ore') \
-                + pluraliTemp(minuti, 'Minuti') \
-                + str(secondi)
-        giorni, ore = divmod(ore, 24)
-        if 'giorni' == toTime:
-            calcTime = pluraliTemp(giorni, 'Giorni') \
-                + pluraliTemp(ore, 'Ore') \
-                + pluraliTemp(minuti, 'Minuti') \
-                + str(secondi)
-
-        if calcTime:
-            editText = botOnlineText(calcTime)
-            urlRic = auT + '/editMessageText'
-            parRic = {
-                'chat_id': str(chatId),
-                'message_id': str(messageId),
-                'text': str(editText),
-                'parse_mode': 'Markdown'
-            }
-            nuovaRichiesta(urlRic, parRic=parRic)
+        if divDati[0] == 'convSec':
+            if len(divDati) == 3:
+                if intRex.fullmatch(divDati[2]):
+                    convSec(chatId, messageId, divDati)
 
 
 while True:

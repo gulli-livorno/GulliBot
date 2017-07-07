@@ -3,3 +3,4 @@ Comandi disponibili:
 /aiuto - Lista comandi disponibili
 /saluta - Ti saluto
 /eventi - Prossimi eventi
+/sorgenti - Info sul codice sorgente
