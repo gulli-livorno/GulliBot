@@ -1,3 +1,7 @@
+#------------------------------------------------------------------------------------
+# GulliBot - Programma dimostrativo per lo sviluppo di Bot su Telegram
+# Autore: Alessio Margelli
+#------------------------------------------------------------------------------------
 from varpro import token, keyGoogleApi
 from datetime import datetime, timedelta
 from rfc3339 import rfc3339
@@ -282,7 +286,7 @@ def sorgentiCmd(chatId):
                         'url': paginaGitHub
                     },
                     {
-                        'text': 'LICENSA',
+                        'text': 'LICENZA',
                         'url': paginaGitHub + '/blob/master/LICENSE'
                     }
                 ],
