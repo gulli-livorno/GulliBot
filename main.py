@@ -11,6 +11,7 @@ import sqlite3
 import re
 
 # Dati bot
+versione = '2.4'
 apiUrl = "https://api.telegram.org/bot"
 auT = apiUrl + token
 timeout = 15
@@ -24,6 +25,7 @@ urlGoogleCal = "https://www.googleapis.com/calendar/v3/calendars/" \
 
 # Regex
 intRex = re.compile('\d+')
+iCalRex = re.compile('[a-z0-9]+\@google\.com')
 
 # Gestione interruzione script
 run = True
@@ -87,6 +89,21 @@ def rfcTime():
     return str(rfc3339(datetime.now()))
 
 
+def dtEvento(evento):
+    if 'dateTime' in evento['start']:
+        inizio = iso8601.parse_date(evento['start']['dateTime'])
+    else:
+        inizio = iso8601.parse_date(evento['start']['date'])
+        inizio = inizio.replace(hour=00, minute=00)
+    if 'dateTime' in evento['end']:
+        fine = iso8601.parse_date(evento['end']['dateTime'])
+    else:
+        fine = iso8601.parse_date(evento['end']['date'])
+        fine -= timedelta(days=1)
+        fine = fine.replace(hour=23, minute=59)
+    return inizio, fine
+
+
 def salvaErrore(tipoErrore):
     cursDB.execute(
         'INSERT INTO `errori` (`rfcTime`, `tipoErrore`) VALUES (?, ?);',
@@ -127,7 +144,11 @@ def nuovaRichiesta(urlRic, parRic=None, datRic=None):
     except requests.exceptions.ConnectionError:
         salvaErrore('Errore di connessione')
         time.sleep(60)
-        risposta = nuovaRichiesta(urlRic, parRic=parRic, datRic=datRic)
+        risposta = nuovaRichiesta(
+            urlRic,
+            parRic=parRic,
+            datRic=datRic
+        )
 
     global lastRicCyc
     if lastRicCyc > 10:
@@ -143,7 +164,11 @@ def nuovaRichiesta(urlRic, parRic=None, datRic=None):
     if risposta.status_code != 200:
         salvaErrore('Codice non corretto -> ' + str(risposta.status_code))
         time.sleep(60)
-        risposta = nuovaRichiesta(urlRic, parRic=parRic, datRic=datRic)
+        risposta = nuovaRichiesta(
+            urlRic,
+            parRic=parRic,
+            datRic=datRic
+        )
 
     return risposta
 
@@ -214,15 +239,15 @@ def statoCmd(chatId):
             'inline_keyboard': [[
                 {
                     'text': 'Giorni',
-                    'callback_data': 'convSec,giorni,'+secUptime
+                    'callback_data': 'convSec,giorni,' + secUptime
                 },
                 {
                     'text': 'Ore',
-                    'callback_data': 'convSec,ore,'+secUptime
+                    'callback_data': 'convSec,ore,' + secUptime
                 },
                 {
                     'text': 'Minuti',
-                    'callback_data': 'convSec,minuti,'+secUptime
+                    'callback_data': 'convSec,minuti,' + secUptime
                 }
             ]]
         }
@@ -233,24 +258,16 @@ def statoCmd(chatId):
 def eventiCmd(chatId):
     parRic = {
         'key': str(keyGoogleApi),
-        'timeMin': rfcTime()
+        'timeMin': rfcTime(),
+        'singleEvents': True,
+        'orderBy': 'startTime'
     }
     eventiDict = json.loads(nuovaRichiesta(urlGoogleCal, parRic=parRic).text)
     if len(eventiDict['items']) > 0:
         for evento in eventiDict['items']:
             eventoTot = '*' + evento['summary'] + '*\n'
 
-            if 'dateTime' in evento['start']:
-                inizio = iso8601.parse_date(evento['start']['dateTime'])
-            else:
-                inizio = iso8601.parse_date(evento['start']['date'])
-                inizio = inizio.replace(hour=00, minute=00)
-            if 'dateTime' in evento['end']:
-                fine = iso8601.parse_date(evento['end']['dateTime'])
-            else:
-                fine = iso8601.parse_date(evento['end']['date'])
-                fine -= timedelta(days=1)
-                fine = fine.replace(hour=23, minute=59)
+            inizio, fine = dtEvento(evento)
 
             if inizio.day == fine.day:
                 if int((fine-inizio).total_seconds()) == 86340:
@@ -273,7 +290,9 @@ def sorgentiCmd(chatId):
     urlRic = auT + '/sendMessage'
     datRic = {
         'chat_id': chatId,
-        'text': 'Il codice sorgente è ospitato su GitHub',
+        'text': 'Versione: *' + versione + '*\n'
+        + 'Il codice sorgente è ospitato su GitHub',
+        'parse_mode': 'Markdown',
         'reply_markup': {
             'inline_keyboard': [
                 [
@@ -282,7 +301,7 @@ def sorgentiCmd(chatId):
                         'url': paginaGitHub
                     },
                     {
-                        'text': 'LICENSA',
+                        'text': 'LICENZA',
                         'url': paginaGitHub + '/blob/master/LICENSE'
                     }
                 ],
