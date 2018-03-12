@@ -1,6 +1,7 @@
 Comandi disponibili:
 /aiuto - Lista comandi disponibili
 /eventi - Prossimi eventi
+/inventario - Inventario del GulliLab
 /annulla - Annulla comando attivo
 /notifiche - Dis/attiva notifiche
 /info - Info bot

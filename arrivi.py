@@ -8,8 +8,6 @@ import rfc3339
 import datetime
 import datiBot
 
-dbSemaphore = threading.BoundedSemaphore(value=1)
-
 
 def rfcTime(dt=None):
     if not dt:
@@ -64,6 +62,24 @@ class elaboraUpd(threading.Thread):
             }
         requestsAv.post('telegram', '/sendMessage', data=data)
 
+    def sendReplyKey(self, text, replyList):
+        keyboard = []
+        for replyText in replyList:
+            keyboard.append([{'text': replyText}])
+        data = {
+            'chat_id': self.update['message']['chat']['id'],
+            'text': text,
+            'parse_mode': 'Markdown',
+            'reply_markup':
+            {
+                'keyboard': keyboard,
+                'resize_keyboard': True,
+                'one_time_keyboard': True,
+                'force_reply': True
+            }
+        }
+        requestsAv.post('telegram', '/sendMessage', data=data)
+
     def scritturaCmd(self, comando=None):
         self.db.eseg(
             '''
@@ -100,7 +116,7 @@ class elaboraUpd(threading.Thread):
                 params['timeMax'] = rfcTime(dtFine)
 
             err, risposta = requestsAv.get(
-                'google', '/events',
+                'googleCalendar', '/events',
                 params=params
             )
             if not err:
@@ -123,23 +139,65 @@ class elaboraUpd(threading.Thread):
             self.scritturaCmd()
 
     def eventiRisp(self):
-        data = {
-            'chat_id': self.update['message']['chat']['id'],
-            'text': 'Visualizza eventi in questa/o',
-            'reply_markup':
-            {
-                'keyboard': [
-                    [{'text': 'Settimana'}],
-                    [{'text': 'Mese'}],
-                    [{'text': 'Tutti'}]
-                ],
-                'resize_keyboard': True,
-                'one_time_keyboard': True,
-                'force_reply': True
-            }
-        }
-        requestsAv.post('telegram', '/sendMessage', data=data)
+        self.sendReplyKey(
+            'Visualizza eventi in questa/o',
+            ['Settimana', 'Mese', 'Tutti']
+        )
         self.scritturaCmd('eventi')
+
+    def inventarioCmd(self, sheetTab):
+        hwId = str(self.update['message']['text'].split(' ')[0])[1:]
+        logging.debug(hwId)
+        datiHw = cachedSheet[sheetTab][int(hwId)+1]
+        msgDati = ''
+        letturaDati = 0
+        while letturaDati < len(datiHw):
+            msgDati += '{}: {}\n'.format(
+                cachedSheet[sheetTab][0][letturaDati], datiHw[letturaDati]
+            )
+            letturaDati += 1
+        logging.debug(msgDati)
+        self.sendMessage(msgDati, rimKey=True)
+        self.scritturaCmd()
+
+    def inventarioRisp(self, passo):
+        if passo == 1:
+            err, risposta = requestsAv.get('googleSheet')
+            if not err:
+                replyList = []
+                for sheet in risposta.json()['sheets']:
+                    logging.debug(sheet['properties']['title'])
+                    replyList.append(sheet['properties']['title'])
+                self.sendReplyKey(
+                    'Quale inventario ti devo mostrare?',
+                    replyList
+                )
+                self.scritturaCmd('inventario1')
+        elif passo == 2:
+            err, risposta = requestsAv.get(
+                'googleSheet', '/values/' + self.update['message']['text']
+            )
+            if err:
+                self.sendMessage('Input non consentito')
+            else:
+                sheetValues = risposta.json()['values']
+                global cachedSheet
+                cachedSheet = {}
+                cachedSheet[self.update['message']['text']] = sheetValues
+                hwList = []
+                rowIncr = 0
+                for value in sheetValues[1:]:
+                    try:
+                        hwList.append('\{} ID={} > {}'.format(
+                            rowIncr, value[0], value[1])
+                        )
+                    except IndexError:
+                        hwList.append('\{} Senza nome'.format(rowIncr))
+                    rowIncr += 1
+                self.sendReplyKey('Seleziona un pc:', hwList)
+                self.scritturaCmd(
+                    'inventario2:' + self.update['message']['text']
+                )
 
     def notificheCmd(self):
         text = self.update['message']['text']
@@ -179,25 +237,13 @@ class elaboraUpd(threading.Thread):
             'one'
         )[0]
 
-        data = {
-            'chat_id': self.update['message']['chat']['id'],
-            'text': 'Notifiche attive: *' + selNotifiche + '*',
-            'parse_mode': 'Markdown',
-            'reply_markup':
-            {
-                'keyboard': [
-                    [{'text': 'Attiva'}],
-                    [{'text': 'Disattiva'}]
-                ],
-                'resize_keyboard': True,
-                'one_time_keyboard': True,
-                'force_reply': True
-            }
-        }
-        requestsAv.post('telegram', '/sendMessage', data=data)
+        self.sendReplyKey(
+            'Notifiche attive: *' + selNotifiche + '*',
+            ['Attiva', 'Disattiva']
+        )
         self.scritturaCmd('notifiche')
 
-    def inoltraCmd(self):
+    def inoltraCmd(self, orarioInoltro):
         self.sendMessage(
             'Inoltro salvato',
             rimKey=True
@@ -212,19 +258,18 @@ class elaboraUpd(threading.Thread):
         )
         logging.debug('Scrittura pref. notifiche')
 
-    def inoltraRisp(self, cont=None):
-        if not cont:
+    def inoltraRisp(self, passo):
+        if passo == 1:
             if self.update['message']['chat']['id'] not in datiBot.adminIDs:
                 self.sendMessage('Comando non permesso')
             else:
                 self.sendMessage('Inviami l\'orario')
                 self.scritturaCmd('inoltra1')
-        else:
-            global orarioInoltro
+        elif passo == 2:
             ogg = datetime.datetime.now().strftime("%Y%m%d")
             orarioInoltro = self.update['message']['text'].replace('oggi', ogg)
             self.sendMessage('Inviami il messaggio')
-            self.scritturaCmd('inoltra2')
+            self.scritturaCmd('inoltra2:' + orarioInoltro)
 
     def verificaCmd(self, comando):
         msgText = self.update['message']['text']
@@ -261,12 +306,16 @@ class elaboraUpd(threading.Thread):
                 else:
                     if memCmd == 'eventi':
                         self.eventiCmd()
+                    if memCmd == 'inventario1':
+                        self.inventarioRisp(2)
+                    elif memCmd.startswith('inventario2:'):
+                        self.inventarioCmd(memCmd.split(':')[1])
                     elif memCmd == 'notifiche':
                         self.notificheCmd()
                     elif memCmd == 'inoltra1':
-                        self.inoltraRisp(True)
-                    elif memCmd == 'inoltra2':
-                        self.inoltraCmd()
+                        self.inoltraRisp(2)
+                    elif memCmd.startswith('inoltra2:'):
+                        self.inoltraCmd(memCmd.split(':')[1])
                     else:
                         logging.error('Comando interno errato')
             else:
@@ -279,6 +328,8 @@ class elaboraUpd(threading.Thread):
                     cmdAiutoFile.close()
                 elif self.verificaCmd('/eventi'):
                     self.eventiRisp()
+                elif self.verificaCmd('/inventario'):
+                    self.inventarioRisp(1)
                 elif self.verificaCmd('/notifiche'):
                     self.notificheRisp()
                 elif self.verificaCmd('/info'):
@@ -290,7 +341,7 @@ class elaboraUpd(threading.Thread):
                 elif self.verificaCmd('/chatid'):
                     self.sendMessage(self.update['message']['chat']['id'])
                 elif self.verificaCmd('/inoltra'):
-                    self.inoltraRisp()
+                    self.inoltraRisp(1)
                 else:
                     self.sendMessage('Comando non trovato')
 
