@@ -51,13 +51,16 @@ def _installata_nuova_versione(versione_precedente):
     )
 
 
-def verifica_aggiornamenti(stop_event, stop_queue):
-    logging.debug('{} avviato'.format(__name__))
+def _check_nuova_versione():
     with open(FILE_VERSIONE, mode='w+') as f:
         versione_su_file = f.read()
         if versione_su_file and VERSIONE > versione_su_file:
             _installata_nuova_versione(versione_su_file)
         f.write(VERSIONE)
+
+
+def verifica_aggiornamenti(stop_event, stop_queue, db_queue):
+    logging.debug('{} avviato'.format(__name__))
     loop = True
     while loop:
         gl = github_latest()

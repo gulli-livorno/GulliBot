@@ -19,7 +19,8 @@ def main() -> int:
     logging.debug('Main avviato')
     stop_event = Event()
     stop_queue = Queue()
-    stop_pack = (stop_event, stop_queue)
+    db_queue = Queue()
+    args_pack = (stop_event, stop_queue, db_queue)
 
     def signal_stop(signum, frame):
         stop_queue.put(99)
@@ -27,9 +28,12 @@ def main() -> int:
     signal(SIGTERM, signal_stop)
     signal(SIGABRT, signal_stop)
 
+    from db import connessione_db
+    Process(target=connessione_db, args=args_pack).start()
+
     if '--auto-update' in sys.argv:
         from auto_update import verifica_aggiornamenti
-        Process(target=verifica_aggiornamenti, args=stop_pack).start()
+        Process(target=verifica_aggiornamenti, args=args_pack).start()
 
     causa_stop = stop_queue.get(block=True)
     if causa_stop:
