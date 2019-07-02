@@ -6,6 +6,10 @@ DESC_STOP = {
     100: 'Aggiornamento bot'
 }
 
+FILE_VERSIONE = 'ultima_versione'
+
+FILE_TOKENS = 'tokens.json'
+
 GITHUB_HEADER = {'Accept': 'application/vnd.github.v3+json'}
 
 GITHUB_LATEST_RELEASE = 'https://api.github.com/repos/' \
@@ -13,4 +17,4 @@ GITHUB_LATEST_RELEASE = 'https://api.github.com/repos/' \
 
 INTERVALLO_CONTROLLI = 30
 
-VERSIONE = 'v4.0-beta0'
+VERSIONE = 'v1.0-beta0'

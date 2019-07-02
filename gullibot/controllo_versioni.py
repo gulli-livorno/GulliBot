@@ -3,14 +3,12 @@
 
 import logging
 import os
-import tarfile
-from tempfile import NamedTemporaryFile
 from time import sleep
 
 import requests
 
-from const import (GITHUB_HEADER, GITHUB_LATEST_RELEASE, INTERVALLO_CONTROLLI,
-                   VERSIONE)
+from const import (FILE_VERSIONE, GITHUB_HEADER, GITHUB_LATEST_RELEASE,
+                   INTERVALLO_CONTROLLI, VERSIONE)
 
 
 class github_latest:
@@ -22,6 +20,9 @@ class github_latest:
 
 
 def _aggiorna_bot(url) -> bool:
+    import tarfile
+    from tempfile import NamedTemporaryFile
+
     logging.debug("Download di {}".format(url))
     r = requests.get(url)
     if r.status_code != 200:
@@ -43,14 +44,27 @@ def _aggiorna_bot(url) -> bool:
     return True
 
 
-def controllo_versione_bot(stop_event, stop_queue):
+def _installata_nuova_versione(versione_precedente):
+    logging.info(
+        'Nuova versione installata: {} > {}'
+        .format(VERSIONE, versione_precedente)
+    )
+
+
+def verifica_aggiornamenti(stop_event, stop_queue):
     logging.debug('{} avviato'.format(__name__))
-    while not stop_event.is_set():
+    with open(FILE_VERSIONE, mode='w+') as f:
+        versione_su_file = f.read()
+        if versione_su_file and VERSIONE > versione_su_file:
+            _installata_nuova_versione(versione_su_file)
+        f.write(VERSIONE)
+    loop = True
+    while loop:
         gl = github_latest()
         if gl.ok:
             versione_github = gl.rj['tag_name']
             if VERSIONE < versione_github:
-                logging.debug(
+                logging.info(
                     'Download nuova versione: {}'.format(versione_github)
                 )
                 if _aggiorna_bot(gl.rj['tarball_url']):
@@ -59,5 +73,9 @@ def controllo_versione_bot(stop_event, stop_queue):
             logging.warning(
                 '{} - Errore risposta github: {}'.format(__name__, gl.sc)
             )
-        sleep(INTERVALLO_CONTROLLI)
+        for i in range(0, INTERVALLO_CONTROLLI):
+            if stop_event.is_set():
+                loop = False
+            else:
+                sleep(1)
     logging.debug('{} fermato'.format(__name__))
