@@ -28,7 +28,7 @@ def main() -> int:
     signal(SIGABRT, signal_stop)
 
     if '--auto-update' in sys.argv:
-        from controllo_versioni import verifica_aggiornamenti
+        from auto_update import verifica_aggiornamenti
         Process(target=verifica_aggiornamenti, args=stop_pack).start()
 
     causa_stop = stop_queue.get(block=True)

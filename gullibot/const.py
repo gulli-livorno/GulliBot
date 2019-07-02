@@ -17,4 +17,4 @@ GITHUB_LATEST_RELEASE = 'https://api.github.com/repos/' \
 
 INTERVALLO_CONTROLLI = 30
 
-VERSIONE = 'v1.0-beta0'
+VERSIONE = 'v4.0-beta0'
