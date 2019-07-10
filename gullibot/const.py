@@ -11,14 +11,21 @@ CHAT_SCHEMA = '''
     ) WITHOUT ROWID;
 '''
 
+CONFIG_FILE = 'config.json'
+
+CONFIG_MODEL = {
+    'telegram': {
+        'token': '',
+        'propietari_bot': []
+    }
+}
+
 DESC_STOP = {
     99: 'Interruzione tramite signal',
     100: 'Aggiornamento bot'
 }
 
 FILE_SQLITE = 'db.sqlite'
-
-FILE_TOKENS = 'tokens.json'
 
 FILE_VERSIONE = 'ultima_versione'
 
