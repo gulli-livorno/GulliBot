@@ -29,7 +29,7 @@ def invia_messaggio(chat_ids: list, text: str, **kwargs) -> bool:
             )
         return True
     except TelegramError as e:
-        logging.error('Errore telegram: {}'.format(e))
+        logging.error('Errore telegram: {}\n durante invio semplice'.format(e))
         return False
 
 

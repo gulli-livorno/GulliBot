@@ -39,6 +39,15 @@ def main() -> int:
     db_process.start()
     process_list.append(db_process)
 
+    from tg_updater import ricezione_messaggi
+    updater_process = Process(
+        target=ricezione_messaggi,
+        name='Ricezione messaggi telegram',
+        args=args_pack
+    )
+    updater_process.start()
+    process_list.append(updater_process)
+
     if '--auto-update' in sys.argv:
         from auto_update import verifica_aggiornamenti
         update_process = Process(
