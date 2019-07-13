@@ -11,6 +11,18 @@ CHAT_SCHEMA = '''
     ) WITHOUT ROWID;
 '''
 
+COMANDI_TG = '''
+Comandi disponibili:
+/start - Lista comandi disponibili
+/aiuto - Lista comandi disponibili
+/help - Lista comandi disponibili
+/info - Info bot
+/eventi - Prossimi eventi
+/annulla - Annulla comando attivo
+/notifiche - Dis/attiva notifiche
+/settings - Dis/attiva notifiche
+'''
+
 CONFIG_FILE = 'config.json'
 
 CONFIG_MODEL = {
