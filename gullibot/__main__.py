@@ -61,6 +61,7 @@ def main() -> int:
                     msg = 'Il processo *{}* è morto!'.format(proc.name)
                     logging.error(msg)
                     notifica_propietari(text=msg)
+                    process_list.remove(proc)
     if causa_stop:
         stop_event.set()
     logging.debug('Main fermato: {}'.format(DESC_STOP[causa_stop]))
@@ -71,8 +72,9 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    log_level = logging.DEBUG if '--verbose' in sys.argv else logging.INFO
     logging.basicConfig(
-        level=logging.DEBUG,
+        level=log_level,
         format="%(asctime)s %(levelname)s (%(threadName)s) "
         "[%(name)s] %(message)s",
         datefmt='%Y-%m-%d %H:%M:%S'
