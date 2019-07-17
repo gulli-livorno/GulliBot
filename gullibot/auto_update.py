@@ -7,8 +7,11 @@ from time import sleep
 
 import requests
 
-from const import (FILE_VERSIONE, GITHUB_HEADER, GITHUB_LATEST_RELEASE,
-                   INTERVALLO_CONTROLLI, VERSIONE)
+from api import notifica_tutti
+from const import (CONTROLLO_AGGIORNAMENTI_BOT, FILE_VERSIONE, GITHUB_HEADER,
+                   GITHUB_LATEST_RELEASE, VERSIONE)
+
+logger = logging.getLogger(__name__)
 
 
 class github_latest:
@@ -23,10 +26,10 @@ def _aggiorna_bot(url) -> bool:
     import tarfile
     from tempfile import NamedTemporaryFile
 
-    logging.debug("Download di {}".format(url))
+    logger.debug("Download di {}".format(url))
     r = requests.get(url)
     if r.status_code != 200:
-        logging.error('Errore download: {}'.format(url))
+        logger.warning('Errore download: {}'.format(url))
         return False
     with NamedTemporaryFile() as f:
         f.write(r.content)
@@ -44,41 +47,41 @@ def _aggiorna_bot(url) -> bool:
     return True
 
 
-def _installata_nuova_versione(versione_precedente):
-    logging.info(
-        'Nuova versione installata: {} > {}'
-        .format(VERSIONE, versione_precedente)
-    )
-
-
 def _check_nuova_versione():
     with open(FILE_VERSIONE, mode='w+') as f:
         versione_su_file = f.read()
         if versione_su_file and VERSIONE > versione_su_file:
-            _installata_nuova_versione(versione_su_file)
+            logger.info(
+                'Nuova versione installata: {} > {}'
+                .format(VERSIONE, versione_su_file)
+            )
+            notifica_tutti(
+                'Nuova versione installata\n'
+                'https://github.com/gulli-livorno/GulliBot/releases/latest'
+            )
         f.write(VERSIONE)
 
 
 def verifica_aggiornamenti(stop_event, stop_queue, db_queue):
-    logging.debug('{} avviato'.format(__name__))
+    logger.debug('{} avviato'.format(__name__))
     loop = True
     while loop:
         gl = github_latest()
         if gl.ok:
             versione_github = gl.rj['tag_name']
             if VERSIONE < versione_github:
-                logging.info(
+                logger.info(
                     'Download nuova versione: {}'.format(versione_github)
                 )
                 if _aggiorna_bot(gl.rj['tarball_url']):
                     stop_queue.put(100)
         else:
-            logging.warning(
+            logger.warning(
                 '{} - Errore risposta github: {}'.format(__name__, gl.sc)
             )
-        for i in range(0, INTERVALLO_CONTROLLI):
+        for i in range(0, CONTROLLO_AGGIORNAMENTI_BOT):
             if stop_event.is_set():
                 loop = False
             else:
                 sleep(1)
-    logging.debug('{} fermato'.format(__name__))
+    logger.debug('{} fermato'.format(__name__))

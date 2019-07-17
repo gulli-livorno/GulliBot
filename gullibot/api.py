@@ -3,6 +3,8 @@
 
 import logging
 
+logger = logging.getLogger(__name__)
+
 
 def config_dict() -> dict:
     import json
@@ -15,8 +17,7 @@ def config_dict() -> dict:
 
 
 def invia_messaggio(chat_ids: list, text: str, **kwargs) -> bool:
-    from telegram import Bot, ParseMode
-    from telegram.error import TelegramError
+    from telegram import Bot, ParseMode, TelegramError
 
     try:
         bot = Bot(config_dict()['telegram']['token'])
@@ -29,7 +30,7 @@ def invia_messaggio(chat_ids: list, text: str, **kwargs) -> bool:
             )
         return True
     except TelegramError as e:
-        logging.error('Errore telegram: {}\n durante invio semplice'.format(e))
+        logger.error('Errore telegram: {}\n durante invio semplice'.format(e))
         return False
 
 
@@ -39,3 +40,7 @@ def notifica_propietari(text: str, **kwargs) -> bool:
         text=text,
         **kwargs
     )
+
+
+def notifica_tutti(text: str, **kwargs) -> bool:
+    pass

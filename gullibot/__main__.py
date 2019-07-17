@@ -10,11 +10,13 @@ from signal import SIGABRT, SIGINT, SIGTERM, signal
 from time import sleep
 
 from api import notifica_propietari
-from const import CONFIG_FILE, CONFIG_MODEL, DESC_STOP, VERSIONE
+from const import CONFIG_FILE, CONFIG_MODEL, DESC_STOP, MAX_TIMEOUT, VERSIONE
+
+logger = logging.getLogger(__name__)
 
 
 def main() -> int:
-    logging.debug('Main avviato')
+    logger.debug('Main avviato')
     notifica_propietari(text='Bot avviato\nVersione: *{}*'.format(VERSIONE))
 
     stop_event = Event()
@@ -62,20 +64,20 @@ def main() -> int:
     causa_stop = ''
     while loop:
         try:
-            causa_stop = stop_queue.get(block=True, timeout=5)
+            causa_stop = stop_queue.get(block=True, timeout=MAX_TIMEOUT)
             loop = False
         except Empty:
             for proc in process_list:
                 if not proc.is_alive():
                     msg = 'Il processo *{}* è morto!'.format(proc.name)
-                    logging.error(msg)
+                    logger.error(msg)
                     notifica_propietari(text=msg)
                     process_list.remove(proc)
     if causa_stop:
         stop_event.set()
-    logging.debug('Main fermato: {}'.format(DESC_STOP[causa_stop]))
+    logger.debug('Main fermato: {}'.format(DESC_STOP[causa_stop]))
     if causa_stop == 100:
-        sleep(10)
+        sleep(MAX_TIMEOUT+10)
         os.execv(__file__, sys.argv)
     return causa_stop
 
@@ -95,7 +97,7 @@ if __name__ == "__main__":
 
         with open(CONFIG_FILE, mode='w') as f:
             json.dump(CONFIG_MODEL, f, indent=4, sort_keys=True)
-        logging.info('Completa il file {}'.format(CONFIG_FILE))
+        logger.info('Completa il file {}'.format(CONFIG_FILE))
         sys.exit(1)
 
     sys.exit(main())
