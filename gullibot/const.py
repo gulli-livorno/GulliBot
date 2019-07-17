@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+CHAT_INSERT = 'INSERT OR IGNORE INTO `chat` (`tg_id`, `tipo`) VALUES(?, ?);'
+
 CHAT_SCHEMA = '''
     CREATE TABLE IF NOT EXISTS `chat` (
         `tg_id`     INTEGER NOT NULL,
