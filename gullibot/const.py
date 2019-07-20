@@ -21,6 +21,7 @@ Comandi disponibili:
 /info - Info bot
 /eventi - Prossimi eventi
 /annulla - Annulla comando attivo
+/cancel - Annulla comando attivo
 /notifiche - Dis/attiva notifiche
 /settings - Dis/attiva notifiche
 '''

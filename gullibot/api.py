@@ -16,6 +16,23 @@ def config_dict() -> dict:
     return config
 
 
+def controllo_propietari(chat_id: int) -> bool:
+    if chat_id in config_dict()['telegram']['propietari_bot']:
+        return True
+    else:
+        msg = (
+            'ATTENZIONE: *{}* ha provato un comando riservato ai propietari'
+            .format(chat_id)
+        )
+        logger.warning(msg)
+        notifica_propietari(text=msg)
+        invia_messaggio(
+            chat_ids=[chat_id],
+            text='Non sei il propietario del bot!'
+        )
+        return False
+
+
 def invia_messaggio(chat_ids: list, text: str, **kwargs) -> bool:
     from telegram import Bot, ParseMode, TelegramError
 
