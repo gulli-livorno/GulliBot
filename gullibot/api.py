@@ -1,48 +1,45 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import json
 import logging
+
+from telegram import Bot, Message, TelegramError
+
+from const import CONFIG_FILE
 
 logger = logging.getLogger(__name__)
 
 
 def config_dict() -> dict:
-    import json
-    from const import CONFIG_FILE
-
     config = {}
     with open(CONFIG_FILE, mode='r') as f:
         config = json.load(f)
     return config
 
 
-def controllo_propietari(chat_id: int) -> bool:
-    if chat_id in config_dict()['telegram']['propietari_bot']:
+def controllo_propietari(message: Message) -> bool:
+    if message.from_user.id in config_dict()['telegram']['propietari_bot']:
         return True
     else:
         msg = (
-            'ATTENZIONE: *{}* ha provato un comando riservato ai propietari'
-            .format(chat_id)
+            'ATTENZIONE: *{}* ha provato un comando riservato ai propietari.'
+            ' Cercalo con /chats'.format(message.from_user.id)
         )
         logger.warning(msg)
         notifica_propietari(text=msg)
-        invia_messaggio(
-            chat_ids=[chat_id],
-            text='Non sei il propietario del bot!'
-        )
+        message.reply_text('Non sei il propietario del bot!')
         return False
 
 
 def invia_messaggio(chat_ids: list, text: str, **kwargs) -> bool:
-    from telegram import Bot, ParseMode, TelegramError
-
     try:
         bot = Bot(config_dict()['telegram']['token'])
         for id in chat_ids:
             bot.send_message(
                 chat_id=id,
                 text=text,
-                parse_mode=ParseMode.MARKDOWN,
+                parse_mode='Markdown',
                 **kwargs
             )
         return True
