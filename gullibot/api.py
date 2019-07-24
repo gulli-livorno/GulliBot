@@ -3,6 +3,7 @@
 
 import json
 import logging
+from multiprocessing import Queue
 
 from telegram import Bot, Message, TelegramError
 
@@ -56,5 +57,19 @@ def notifica_propietari(text: str, **kwargs) -> bool:
     )
 
 
-def notifica_tutti(text: str, **kwargs) -> bool:
-    pass
+class notifica_asincrona:
+    def __init__(self, text: str, **kwargs):
+        self.text = text
+        self.kwargs = kwargs
+
+    def tutti(self, ids: list):
+        ids = [x[0] for x in ids]
+        invia_messaggio(chat_ids=ids, text=self.text, **self.kwargs)
+
+
+def notifica_tutti(db_queue: Queue, text: str, **kwargs) -> bool:
+    db_queue.put((
+        notifica_asincrona(text=text, **kwargs).tutti,
+        'SELECT `tg_id` FROM `chat` WHERE `notifiche`=\'si\'',
+        None
+    ))

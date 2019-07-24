@@ -6,6 +6,7 @@ import os
 from time import sleep
 
 import requests
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 from api import notifica_tutti
 from const import (CONTROLLO_AGGIORNAMENTI_BOT, FILE_VERSIONE, GITHUB_HEADER,
@@ -47,7 +48,7 @@ def _aggiorna_bot(url) -> bool:
     return True
 
 
-def _check_nuova_versione():
+def _check_nuova_versione(db_queue):
     with open(FILE_VERSIONE, mode='w+') as f:
         versione_su_file = f.read()
         if versione_su_file and VERSIONE > versione_su_file:
@@ -55,15 +56,23 @@ def _check_nuova_versione():
                 'Nuova versione installata: {} > {}'
                 .format(VERSIONE, versione_su_file)
             )
+            github_button = InlineKeyboardButton(
+                text='GitHub',
+                url='https://github.com/gulli-livorno/GulliBot/releases/latest'
+            )
             notifica_tutti(
-                'Nuova versione installata\n'
-                'https://github.com/gulli-livorno/GulliBot/releases/latest'
+                db_queue=db_queue,
+                text='Nuova versione installata: *{}*'.format(VERSIONE),
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[[github_button]]
+                )
             )
         f.write(VERSIONE)
 
 
 def verifica_aggiornamenti(stop_event, stop_queue, db_queue):
     logger.debug('{} avviato'.format(__name__))
+    _check_nuova_versione(db_queue)
     loop = True
     while loop:
         gl = github_latest()
