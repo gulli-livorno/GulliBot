@@ -7,8 +7,9 @@ from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (CommandHandler, ConversationHandler, Filters,
                           MessageHandler, Updater)
 
-from api import config_dict, controllo_propietari
+from api import config_dict, controllo_propietari, evento_msg, notifica_tutti
 from const import CHAT_INSERT, COMANDI_TG, MAX_TIMEOUT
+from events import eventi_futuri
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ class handlers:
         chat = update.message.chat
         self.db_inserisci_chat(chat.id, chat.type)
 
-    # Conversazione del comando chat
+    # Conversazione del comando chat - OWNER
     def chats(self, update, context):
         if controllo_propietari(update.message):
             update.message.reply_text('Ricerca chats in corso...')
@@ -78,7 +79,7 @@ class handlers:
         )
         return ConversationHandler.END
 
-    # Conversazione del comando notifiche
+    # Conversazione del comando notifiche - ADMIN
     def notifiche(self, update, context):
         chat_private = (update.message.chat.type == 'private')
         member_admin = context.bot.get_chat_member(
@@ -105,9 +106,28 @@ class handlers:
             (notifiche_attive, update.message.chat.id)
         ))
         update.message.reply_text(
-            'Preferenza modificate',
+            'Preferenza modificata',
             reply_markup=ReplyKeyboardRemove()
         )
+        return ConversationHandler.END
+
+    # Comando eventi
+    def eventi(self, update, context):
+        eventi = eventi_futuri()
+        if not eventi:
+            update.message.reply_text('*Nessun evento in programma*',
+                                      parse_mode='Markdown')
+        for e in eventi:
+            update.message.reply_text(evento_msg(e), parse_mode='Markdown')
+
+    # Comando broadcast - OWNER
+    def broadcast(self, update, context):
+        if controllo_propietari(update.message):
+            if update.message.reply_to_message:
+                msg = update.message.reply_to_message.text
+                notifica_tutti(db_queue=self.db_queue, text=msg)
+            else:
+                update.message.reply_text('Metti un messaggio in risposta')
         return ConversationHandler.END
 
     def annulla_conv(self, update, context):
@@ -152,6 +172,8 @@ def ricezione_messaggi(stop_event, stop_queue, db_queue):
     dp.add_handler(conv_chats)
     dp.add_handler(conv_notifiche)
     dp.add_handler(CommandHandler(['start', 'aiuto', 'help'], h.help))
+    dp.add_handler(CommandHandler(['eventi', 'events'], h.eventi))
+    dp.add_handler(CommandHandler(['bc'], h.broadcast))
     dp.add_handler(CommandHandler(['annulla', 'cancel'], h.annulla))
     dp.add_error_handler(h.errore)
     updater.start_polling(timeout=MAX_TIMEOUT)

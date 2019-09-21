@@ -5,13 +5,15 @@ import logging
 import sqlite3
 from threading import Thread
 
-from const import CHAT_SCHEMA, FILE_SQLITE, MAX_TIMEOUT
+from const import (CHAT_SCHEMA, FILE_SQLITE, MAX_TIMEOUT,
+                   STORICO_VERSIONI_SCHEMA)
 
 logger = logging.getLogger(__name__)
 
 
 def _inizializza_db(db_queue):
     db_queue.put((None, CHAT_SCHEMA, None))
+    db_queue.put((None, STORICO_VERSIONI_SCHEMA, None))
 
 
 def connessione_db(stop_event, stop_queue, db_queue):

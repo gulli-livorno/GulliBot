@@ -50,6 +50,15 @@ def main() -> int:
     updater_process.start()
     process_list.append(updater_process)
 
+    from events import verifica_nuovi_eventi
+    events_process = Process(
+        target=verifica_nuovi_eventi,
+        name='Verifica nuovi eventi',
+        args=args_pack
+    )
+    events_process.start()
+    process_list.append(events_process)
+
     if '--auto-update' in sys.argv:
         from auto_update import verifica_aggiornamenti
         update_process = Process(

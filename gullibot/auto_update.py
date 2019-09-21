@@ -10,7 +10,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 from api import notifica_tutti
 from const import (CONTROLLO_AGGIORNAMENTI_BOT, FILE_VERSIONE, GITHUB_HEADER,
-                   GITHUB_LATEST_RELEASE, VERSIONE)
+                   GITHUB_LATEST_RELEASE, STORICO_VERSIONI_INSERT, VERSIONE)
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +67,7 @@ def _check_nuova_versione(db_queue):
                     inline_keyboard=[[github_button]]
                 )
             )
+            db_queue.put((None, STORICO_VERSIONI_INSERT, (VERSIONE)))
         f.write(VERSIONE)
 
 

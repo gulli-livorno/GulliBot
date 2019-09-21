@@ -3,6 +3,7 @@
 
 import json
 import logging
+from datetime import datetime, timezone
 from multiprocessing import Queue
 
 from telegram import Bot, Message, TelegramError
@@ -73,3 +74,31 @@ def notifica_tutti(db_queue: Queue, text: str, **kwargs) -> bool:
         'SELECT `tg_id` FROM `chat` WHERE `notifiche`=\'si\'',
         None
     ))
+
+
+def evento_msg(e: dict) -> str:
+    msg = '*{}*\n'.format(e['nome'])
+    if e['descrizione']:
+        msg += '_{}_\n'.format(e['descrizione'])
+    if e['inizio_data'] == e['fine_data']:
+        msg += 'Il *{}*\n'.format(e['inizio_data'])
+        if e['inizio_ora'] and e['fine_ora']:
+            msg += ('Ore *{}* - *{}*'
+                    .format(e['inizio_ora'], e['fine_ora']))
+    else:
+        if e['inizio_ora'] and e['fine_ora']:
+            msg += ('Dal *{}* ore *{}*\nAl *{}* ore *{}*\n'
+                    .format(e['inizio_data'], e['inizio_ora'],
+                            e['fine_data'], e['fine_ora']))
+        else:
+            msg += ('Dal *{}*\nAl *{}*\n'
+                    .format(e['inizio_data'], e['fine_data']))
+    return msg
+
+
+def time_now() -> datetime:
+    return datetime.now(timezone.utc).astimezone().replace(microsecond=0)
+
+
+def time_now_iso() -> str:
+    return time_now().isoformat()

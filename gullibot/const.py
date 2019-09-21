@@ -32,10 +32,16 @@ CONFIG_MODEL = {
     'telegram': {
         'token': '',
         'propietari_bot': []
+    },
+    'google': {
+        'key': '',
+        'calendar_id': 'gulligle@gmail.com'
     }
 }
 
-CONTROLLO_AGGIORNAMENTI_BOT = 30
+CONTROLLO_AGGIORNAMENTI_BOT = 60
+
+CONTROLLO_NUOVI_EVENTI = 60
 
 DESC_STOP = {
     99: 'Interruzione tramite signal',
@@ -52,5 +58,16 @@ GITHUB_LATEST_RELEASE = 'https://api.github.com/repos/' \
     'gulli-livorno/GulliBot/releases/latest'
 
 MAX_TIMEOUT = 20
+
+STORICO_VERSIONI_INSERT = 'INSERT OR IGNORE INTO `storico_versioni` ' \
+    '(`versione`) VALUES(?);'
+
+STORICO_VERSIONI_SCHEMA = '''
+    CREATE TABLE IF NOT EXISTS `storico_versioni` (
+        `versione` TEXT NOT NULL,
+        `tempo`    DATETIME NOT NULL DEFAULT (DATETIME('now','localtime')),
+        PRIMARY KEY(versione)
+    ) WITHOUT ROWID;
+'''
 
 VERSIONE = 'v4.0-beta0'
