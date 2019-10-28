@@ -84,8 +84,8 @@ def main() -> int:
                     process_list.remove(proc)
     if causa_stop:
         stop_event.set()
-    logger.debug('Main fermato: {}'.format(DESC_STOP[causa_stop]))
-    if causa_stop == 100:
+    logger.info('Main fermato: {}'.format(DESC_STOP[causa_stop]))
+    if causa_stop in [100, 101]:
         sleep(MAX_TIMEOUT+10)
         os.execv(__file__, sys.argv)
     return causa_stop
@@ -100,6 +100,8 @@ if __name__ == "__main__":
         datefmt='%Y-%m-%d %H:%M:%S'
         # filename='log'
     )
+    # Silenzia API google
+    logging.getLogger('googleapiclient.discovery').setLevel(logging.WARNING)
 
     if not os.path.isfile(CONFIG_FILE):
         import json

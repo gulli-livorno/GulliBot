@@ -56,16 +56,14 @@ def _check_nuova_versione(db_queue):
                 'Nuova versione installata: {} > {}'
                 .format(VERSIONE, versione_su_file)
             )
-            github_button = InlineKeyboardButton(
+            rm = InlineKeyboardMarkup.from_button(InlineKeyboardButton(
                 text='GitHub',
                 url='https://github.com/gulli-livorno/GulliBot/releases/latest'
-            )
+            ))
             notifica_tutti(
                 db_queue=db_queue,
                 text='Nuova versione installata: *{}*'.format(VERSIONE),
-                reply_markup=InlineKeyboardMarkup(
-                    inline_keyboard=[[github_button]]
-                )
+                reply_markup=rm
             )
             db_queue.put((None, STORICO_VERSIONI_INSERT, (VERSIONE)))
         f.write(VERSIONE)

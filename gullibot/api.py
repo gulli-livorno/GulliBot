@@ -3,6 +3,8 @@
 
 import json
 import logging
+import re
+from html import unescape as html_unescape
 from datetime import datetime, timezone
 from multiprocessing import Queue
 
@@ -102,3 +104,8 @@ def time_now() -> datetime:
 
 def time_now_iso() -> str:
     return time_now().isoformat()
+
+
+def clean_html(html: str):
+    html = re.sub('<.*$', '', html)
+    return html_unescape(html)
