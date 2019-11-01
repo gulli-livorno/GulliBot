@@ -6,6 +6,7 @@ import os
 from time import sleep
 
 import requests
+from semver import parse_version_info as v_parse
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 from api import notifica_tutti
@@ -51,7 +52,7 @@ def _aggiorna_bot(url) -> bool:
 def _check_nuova_versione(db_queue):
     with open(FILE_VERSIONE, mode='w+') as f:
         versione_su_file = f.read()
-        if versione_su_file and VERSIONE > versione_su_file:
+        if versione_su_file and v_parse(VERSIONE) > v_parse(versione_su_file):
             logger.info(
                 'Nuova versione installata: {} > {}'
                 .format(VERSIONE, versione_su_file)
@@ -77,7 +78,7 @@ def verifica_aggiornamenti(stop_event, stop_queue, db_queue):
         gl = github_latest()
         if gl.ok:
             versione_github = gl.rj['tag_name']
-            if VERSIONE < versione_github:
+            if v_parse(VERSIONE) < v_parse(versione_github):
                 logger.info(
                     'Download nuova versione: {}'.format(versione_github)
                 )

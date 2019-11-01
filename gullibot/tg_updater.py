@@ -2,14 +2,14 @@
 # -*- coding: utf-8 -*-
 
 import logging
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram import (InlineKeyboardButton, InlineKeyboardMarkup,
+                      ReplyKeyboardMarkup, ReplyKeyboardRemove)
 from telegram.ext import (CommandHandler, ConversationHandler, Filters,
                           MessageHandler, Updater)
 
 from api import config_dict, controllo_propietari, evento_msg, notifica_tutti
-from const import CHAT_INSERT, COMANDI_TG, MAX_TIMEOUT, COMANDI_TG_OWNER
+from const import CHAT_INSERT, COMANDI_TG, COMANDI_TG_OWNER, MAX_TIMEOUT
 from events import eventi_futuri
 from feed import scarica_feed
 

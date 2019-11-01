@@ -6,6 +6,7 @@ from typing import List
 import requests
 from atoma import parse_atom_bytes
 from atoma.atom import AtomEntry
+
 from api import clean_html
 from const import ATOM_FEED
 

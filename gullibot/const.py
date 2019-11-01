@@ -80,4 +80,4 @@ STORICO_VERSIONI_SCHEMA = '''
     ) WITHOUT ROWID;
 '''
 
-VERSIONE = 'v4.0-beta1'
+VERSIONE = '4.0.0-beta2'

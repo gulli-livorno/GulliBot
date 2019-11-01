@@ -4,8 +4,8 @@
 import json
 import logging
 import re
-from html import unescape as html_unescape
 from datetime import datetime, timezone
+from html import unescape as html_unescape
 from multiprocessing import Queue
 
 from telegram import Bot, Message, TelegramError
