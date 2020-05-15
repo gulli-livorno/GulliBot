@@ -1,3 +1,5 @@
+## Progetto trasferito su GitLab: https://gitlab.com/G.U.L.Li/linux_livorno_bot
+
 # GulliBot
 Codice sorgente del bot
 
